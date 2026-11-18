@@ -1,0 +1,42 @@
+/* Tailwind v4 entry point. Compiled by the TailwindBuild target in Web.csproj to wwwroot/css/app.css. */
+@import "tailwindcss";
+@import "../obj/ShadcnBlazor/tw-animate.css";
+
+/* Shipped by the ShadcnBlazor package, copied to obj/ShadcnBlazor by its build target. */
+@import "../obj/ShadcnBlazor/scrollbar.css";
+@import "../obj/ShadcnBlazor/default-theme.css";
+@source "../obj/ShadcnBlazor/ShadcnBlazor.map";
+
+@source "../**/*.razor";
+@source "../**/*.cs";
+@source "../wwwroot/**/*.html";
+
+/* Dark mode is class-based; index.html sets <html class="dark"> so dark is the default. */
+@custom-variant dark (&:is(.dark *));
+
+@layer base {
+    * {
+        @apply border-border outline-ring/50;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
+#blazor-error-ui {
+    @apply bg-destructive text-white;
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}

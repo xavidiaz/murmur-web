@@ -1,0 +1,44 @@
+@page "/"
+
+<PageTitle>Murmur</PageTitle>
+
+@* Scaffold smoke page: proves ShadcnBlazor components render under net10 WASM. Replaced by the app shell in the first story. *@
+<div class="flex min-h-screen items-center justify-center p-6">
+    <Card ClassName="w-full max-w-sm">
+        <CardHeader>
+            <CardTitle>Murmur</CardTitle>
+            <CardDescription>ShadcnBlazor smoke test</CardDescription>
+        </CardHeader>
+        <CardContent ClassName="flex items-center gap-2">
+            <Badge>net10 WASM</Badge>
+            <Badge Variant="BadgeVariant.Secondary">Tailwind v4</Badge>
+        </CardContent>
+        <CardFooter ClassName="flex gap-2">
+            <Dialog>
+                <DialogTrigger>
+                    <Slot>
+                        <Button Variant="ButtonVariant.Outline" @attributes="context">Open dialog</Button>
+                    </Slot>
+                </DialogTrigger>
+                <DialogContent ClassName="sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle>It works</DialogTitle>
+                        <DialogDescription>Rendered through PortalOutlet.</DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <DialogClose>
+                            <Slot>
+                                <Button @attributes="context">Close</Button>
+                            </Slot>
+                        </DialogClose>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            <Button @onclick="() => clicks++">Clicked @clicks</Button>
+        </CardFooter>
+    </Card>
+</div>
+
+@code {
+    private int clicks;
+}

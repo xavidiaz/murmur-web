@@ -1,0 +1,74 @@
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer" PrivateAssets="all" />
+    <PackageReference Include="ShadcnBlazor" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../../api/src/Contracts/Contracts.csproj" />
+  </ItemGroup>
+
+  <!--
+    Tailwind CSS v4 (what ShadcnBlazor targets), compiled with the standalone CLI.
+    Input:  Styles/app.css  (imports ShadcnBlazor's theme + scans its class map)
+    Output: wwwroot/css/app.css  (generated, git-ignored)
+    The CLI and tw-animate-css are downloaded once into <repo>/.tools/ (git-ignored).
+  -->
+  <PropertyGroup>
+    <TailwindVersion>4.3.5</TailwindVersion>
+    <TwAnimateCssVersion>1.4.0</TwAnimateCssVersion>
+    <ToolsDir>$([MSBuild]::NormalizeDirectory('$(MSBuildThisFileDirectory)', '..', '..', '.tools'))</ToolsDir>
+    <!-- ShadcnBlazor's package target copies its theme CSS + class map here (its default is bin/ShadcnBlazor). -->
+    <ShadcnBlazorCssClassDir>$(MSBuildProjectDirectory)/obj/ShadcnBlazor</ShadcnBlazorCssClassDir>
+    <TailwindInput>$(MSBuildProjectDirectory)/Styles/app.css</TailwindInput>
+    <TailwindOutput>$(MSBuildProjectDirectory)/wwwroot/css/app.css</TailwindOutput>
+    <TwAnimateCssPath>$(ToolsDir)tw-animate-css-$(TwAnimateCssVersion).css</TwAnimateCssPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
+    <TailwindAsset>tailwindcss-windows-x64.exe</TailwindAsset>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
+    <TailwindAsset Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">tailwindcss-macos-arm64</TailwindAsset>
+    <TailwindAsset Condition="'$(TailwindAsset)' == ''">tailwindcss-macos-x64</TailwindAsset>
+  </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
+    <TailwindAsset Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">tailwindcss-linux-arm64</TailwindAsset>
+    <TailwindAsset Condition="'$(TailwindAsset)' == ''">tailwindcss-linux-x64</TailwindAsset>
+  </PropertyGroup>
+  <PropertyGroup>
+    <TailwindExe>$(ToolsDir)tailwindcss-$(TailwindVersion)/$(TailwindAsset)</TailwindExe>
+  </PropertyGroup>
+
+  <Target Name="TailwindDownload" Condition="!Exists('$(TailwindExe)') Or !Exists('$(TwAnimateCssPath)')">
+    <DownloadFile Condition="!Exists('$(TailwindExe)')"
+                  SourceUrl="https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/$(TailwindAsset)"
+                  DestinationFolder="$(ToolsDir)tailwindcss-$(TailwindVersion)" />
+    <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))" Command="chmod +x &quot;$(TailwindExe)&quot;" />
+    <DownloadFile Condition="!Exists('$(TwAnimateCssPath)')"
+                  SourceUrl="https://cdn.jsdelivr.net/npm/tw-animate-css@$(TwAnimateCssVersion)/dist/tw-animate.css"
+                  DestinationFolder="$(ToolsDir)"
+                  DestinationFileName="tw-animate-css-$(TwAnimateCssVersion).css" />
+  </Target>
+
+  <Target Name="TailwindBuild"
+          DependsOnTargets="TailwindDownload;ShadcnBlazor_CopyContents"
+          BeforeTargets="ResolveStaticWebAssetsConfiguration;AssignTargetPaths"
+          Inputs="$(TailwindInput);$(TwAnimateCssPath);@(Content);@(Compile);$(ShadcnBlazorCssClassDir)/ShadcnBlazor.map;$(MSBuildProjectFile)"
+          Outputs="$(TailwindOutput)">
+    <Copy SourceFiles="$(TwAnimateCssPath)" DestinationFiles="$(MSBuildProjectDirectory)/obj/ShadcnBlazor/tw-animate.css" SkipUnchangedFiles="true" />
+    <Exec Command="&quot;$(TailwindExe)&quot; --input &quot;$(TailwindInput)&quot; --output &quot;$(TailwindOutput)&quot; --minify"
+          WorkingDirectory="$(MSBuildProjectDirectory)" />
+    <ItemGroup>
+      <Content Include="wwwroot/css/app.css" Exclude="@(Content)" />
+      <FileWrites Include="$(TailwindOutput)" />
+    </ItemGroup>
+  </Target>
+
+</Project>
