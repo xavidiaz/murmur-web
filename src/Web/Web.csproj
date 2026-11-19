@@ -18,7 +18,7 @@
     Tailwind CSS v4 (what ShadcnBlazor targets), compiled with the standalone CLI.
     Input:  Styles/app.css  (imports ShadcnBlazor's theme + scans its class map)
     Output: wwwroot/css/app.css  (generated, git-ignored)
-    The CLI and tw-animate-css are downloaded once into <repo>/.tools/ (git-ignored).
+    The CLI and tw-animate-css are downloaded once into <repo>/.tools/ (git-ignored) and verified against pinned SHA-256 checksums.
   -->
   <PropertyGroup>
     <TailwindVersion>4.3.5</TailwindVersion>
@@ -31,31 +31,60 @@
     <TwAnimateCssPath>$(ToolsDir)tw-animate-css-$(TwAnimateCssVersion).css</TwAnimateCssPath>
   </PropertyGroup>
 
+  <!-- SHA-256 of each pinned download (Tailwind: from the release's sha256sums.txt; tw-animate-css: dist/tw-animate.css in the npm tarball). -->
+  <PropertyGroup>
+    <TwAnimateCssSha256>6035b41301945cd65eb233b4653965e3c235338faae51b0f55676d591daaef23</TwAnimateCssSha256>
+  </PropertyGroup>
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Windows'))">
     <TailwindAsset>tailwindcss-windows-x64.exe</TailwindAsset>
+    <TailwindSha256>2803583268c53f4713e89943e211081fddb186c0a4a7d07b5c342c6ae853ec95</TailwindSha256>
   </PropertyGroup>
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('OSX'))">
     <TailwindAsset Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">tailwindcss-macos-arm64</TailwindAsset>
+    <TailwindSha256 Condition="'$(TailwindAsset)' == 'tailwindcss-macos-arm64'">f3f4f5d1727e2b693b8f1c9a1492b5dd87008c86ea286bee1589cb458e6235fc</TailwindSha256>
     <TailwindAsset Condition="'$(TailwindAsset)' == ''">tailwindcss-macos-x64</TailwindAsset>
+    <TailwindSha256 Condition="'$(TailwindSha256)' == ''">a63702686a3ed048b3135d84a73be49ea9d47f880c9b20e54b3ef60934ad8cdf</TailwindSha256>
   </PropertyGroup>
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('Linux'))">
     <TailwindAsset Condition="'$([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture)' == 'Arm64'">tailwindcss-linux-arm64</TailwindAsset>
+    <TailwindSha256 Condition="'$(TailwindAsset)' == 'tailwindcss-linux-arm64'">ffcd0d21dbd7c605dc12743ff0c0b47debc963c86b399674084c1c8f2c96ecad</TailwindSha256>
     <TailwindAsset Condition="'$(TailwindAsset)' == ''">tailwindcss-linux-x64</TailwindAsset>
+    <TailwindSha256 Condition="'$(TailwindSha256)' == ''">e47695cee3f0d90623a91f3939b08bdee610eb5ad99340adff9d4145b284d6cc</TailwindSha256>
   </PropertyGroup>
   <PropertyGroup>
     <TailwindExe>$(ToolsDir)tailwindcss-$(TailwindVersion)/$(TailwindAsset)</TailwindExe>
   </PropertyGroup>
 
-  <Target Name="TailwindDownload" Condition="!Exists('$(TailwindExe)') Or !Exists('$(TwAnimateCssPath)')">
-    <DownloadFile Condition="!Exists('$(TailwindExe)')"
-                  SourceUrl="https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/$(TailwindAsset)"
-                  DestinationFolder="$(ToolsDir)tailwindcss-$(TailwindVersion)" />
+  <!-- Downloads land under a .download name and are renamed only after the checksum matches,
+       so a corrupt or tampered file is never left where the build would use it. -->
+  <Target Name="TailwindDownloadCli" Condition="!Exists('$(TailwindExe)')">
+    <DownloadFile SourceUrl="https://github.com/tailwindlabs/tailwindcss/releases/download/v$(TailwindVersion)/$(TailwindAsset)"
+                  DestinationFolder="$(ToolsDir)tailwindcss-$(TailwindVersion)"
+                  DestinationFileName="$(TailwindAsset).download" />
+    <GetFileHash Files="$(TailwindExe).download" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="_TailwindActualSha256" />
+    </GetFileHash>
+    <Delete Condition="'$(_TailwindActualSha256)' != '$(TailwindSha256)'" Files="$(TailwindExe).download" />
+    <Error Condition="'$(_TailwindActualSha256)' != '$(TailwindSha256)'"
+           Text="SHA-256 mismatch for $(TailwindAsset) v$(TailwindVersion): expected $(TailwindSha256), got $(_TailwindActualSha256)." />
+    <Move SourceFiles="$(TailwindExe).download" DestinationFiles="$(TailwindExe)" />
     <Exec Condition="!$([MSBuild]::IsOSPlatform('Windows'))" Command="chmod +x &quot;$(TailwindExe)&quot;" />
-    <DownloadFile Condition="!Exists('$(TwAnimateCssPath)')"
-                  SourceUrl="https://cdn.jsdelivr.net/npm/tw-animate-css@$(TwAnimateCssVersion)/dist/tw-animate.css"
-                  DestinationFolder="$(ToolsDir)"
-                  DestinationFileName="tw-animate-css-$(TwAnimateCssVersion).css" />
   </Target>
+
+  <Target Name="TailwindDownloadTwAnimate" Condition="!Exists('$(TwAnimateCssPath)')">
+    <DownloadFile SourceUrl="https://cdn.jsdelivr.net/npm/tw-animate-css@$(TwAnimateCssVersion)/dist/tw-animate.css"
+                  DestinationFolder="$(ToolsDir)"
+                  DestinationFileName="tw-animate-css-$(TwAnimateCssVersion).css.download" />
+    <GetFileHash Files="$(TwAnimateCssPath).download" Algorithm="SHA256">
+      <Output TaskParameter="Hash" PropertyName="_TwAnimateActualSha256" />
+    </GetFileHash>
+    <Delete Condition="'$(_TwAnimateActualSha256)' != '$(TwAnimateCssSha256)'" Files="$(TwAnimateCssPath).download" />
+    <Error Condition="'$(_TwAnimateActualSha256)' != '$(TwAnimateCssSha256)'"
+           Text="SHA-256 mismatch for tw-animate-css $(TwAnimateCssVersion): expected $(TwAnimateCssSha256), got $(_TwAnimateActualSha256)." />
+    <Move SourceFiles="$(TwAnimateCssPath).download" DestinationFiles="$(TwAnimateCssPath)" />
+  </Target>
+
+  <Target Name="TailwindDownload" DependsOnTargets="TailwindDownloadCli;TailwindDownloadTwAnimate" />
 
   <Target Name="TailwindBuild"
           DependsOnTargets="TailwindDownload;ShadcnBlazor_CopyContents"
